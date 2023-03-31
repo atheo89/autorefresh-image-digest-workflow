@@ -22,7 +22,7 @@ spec:
         opendatahub.io/default-image: "true"
       from:
         kind: DockerImage
-        name: ""
+        name: "jjjj"
       name: "py3.9-v2"
       referencePolicy:
         type: Local

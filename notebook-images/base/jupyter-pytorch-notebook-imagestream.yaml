@@ -21,7 +21,7 @@ spec:
         opendatahub.io/workbench-image-recommended: 'true'
       from:
         kind: DockerImage
-        name: ""
+        name: "quay.io/opendatahub/workbench-images@sha256:790d9a6d581e148b483efe80c77524f6bd02a0f781274e78d78a2d731dbc8c7a"
       name: "py3.9-v2"
       referencePolicy:
         type: Local

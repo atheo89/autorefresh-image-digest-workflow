@@ -9,7 +9,7 @@ on:
         required: true
         description: "Provide release N version of the notebooks ex 2023a"
   schedule:
-    - cron: "5 * * * *" #Scheduled every Friday
+    - cron:  "*/3 * * * *" #Scheduled every Friday
 env:
   DIGEST_UPDATER_BRANCH: digest-updater-${{ github.run_id }}
   BRANCH_NAME: ${{ github.event.inputs.branch || 'main' }}
@@ -100,7 +100,7 @@ jobs:
         uses: repo-sync/pull-request@v2
         with:
           source_branch: ${{ env.DIGEST_UPDATER_BRANCH }}
-          destination_branch: ${{ inputs.branch }}
+          destination_branch: ${{ env.BRANCH_NAME}}
           github_token: ${{ secrets.GH_ACCESS_TOKEN }}
           pr_label: "automated pr"
           pr_title: "[Digest Updater Action] Update notebook's imageStreams image tag to digest format"

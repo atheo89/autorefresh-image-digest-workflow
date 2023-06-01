@@ -75,10 +75,10 @@ jobs:
                 image=${IMAGES[$i]}
                 echo $image
                 img=$(cat notebook-images/base/params.env | grep -E "${image}=" | cut -d '=' -f2)
-                src_tag=$(echo "$img" | sed 's/-weekly.*//' | cut -d':' -f2 | tr -d '"')
-                regex="$src_tag-\d+-${{ steps.hash.outputs.HASH }}"
-                registry=$(echo $img | cut -d ':' -f1)
-                latest_tag=$(skopeo inspect docker://$img | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
+                -----
+                registry=$(echo $img | cut -d '@' -f1)
+                notebook_name=$(skopeo inspect docker://$img | jq '.Env[] | select(startswith("OPENSHIFT_BUILD_NAME=")) | split("=")[1]' | tr -d '"')
+                latest_tag="$notebook_name-${{ env.RELEASE_VERSION}}-\d{8}-${{ steps.hash.outputs.HASH }}"
                 digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
                 output=$registry@$digest
                 echo $output
@@ -107,3 +107,7 @@ jobs:
             _Created by `/.github/workflows/digest-updater.yaml`
 
             :exclamation: **IMPORTANT NOTE**: Remember to delete the ` ${{ env.DIGEST_UPDATER_BRANCH }}` branch after merging the changes
+            
+
+
+         #   skopeo inspect docker://quay.io/opendatahub/workbench-images@sha256:48598902ae19e4e8ac8b4915b160893a430a7507608651c9143e185f5d282ca3 | jq '.Env[] | select(startswith("OPENSHIFT_BUILD_NAME=")) | split("=")[1]' | tr -d '"'

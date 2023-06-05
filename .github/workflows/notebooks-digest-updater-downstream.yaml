@@ -8,8 +8,8 @@ on:
       release-n:
         required: true
         description: "Provide release N version of the notebooks ex 2023a"
-  schedule:
-    - cron:  "0 0 * * 5" #Scheduled every Friday
+#  schedule:
+#    - cron:  "0 0 * * 5" #Scheduled every Friday
 env:
   DIGEST_UPDATER_BRANCH: digest-updater-${{ github.run_id }}
   BRANCH_NAME: ${{ github.event.inputs.branch || 'main' }}

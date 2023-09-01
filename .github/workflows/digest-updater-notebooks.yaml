@@ -98,7 +98,7 @@ jobs:
         with:
           source_branch:  ${{ env.DIGEST_UPDATER_BRANCH }}
           destination_branch: ${{ env.BRANCH_NAME}}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ secrets.GH_ACCESS_TOKEN }}
           pr_label: "automated pr"
           pr_title: "[Digest Updater Action] Update notebook's imageStreams image tag to digest format"
           pr_body: |

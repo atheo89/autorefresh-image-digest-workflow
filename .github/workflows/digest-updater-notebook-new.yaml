@@ -54,7 +54,7 @@ jobs:
          git config --global user.email "github-actions[bot]@users.noreply.github.com"
          git config --global user.name "GitHub Actions"
 
-      # Get the latest weekly build commit hash: https://github.com/opendatahub-io/notebooks/commits/2023a
+      # Get the latest weekly build commit hash: https://github.com/opendatahub-io/notebooks/commits/2023b
       - name: Checkout upstream notebooks repo
         uses: actions/checkout@v3
         with:
@@ -156,8 +156,8 @@ jobs:
           pr_body: |
             :rocket: This is an automated PR.
 
-            - For N version, used the following hash: ${{ update-n-version.steps.hash-n.outputs.HASH_N }}
-            - For N-1 version, used the following hash: ${{ update-n-1-version.steps.hash-n.outputs.HASH_N_1 }}
+            - For N version, used the following hash: ${{ update-n-version.hash-n.outputs.HASH_N }}
+            - For N-1 version, used the following hash: ${{ update-n-1-version.hash-n.outputs.HASH_N_1 }}
 
             _Created by `/.github/workflows/digest-updater.yaml`
 

@@ -156,8 +156,8 @@ jobs:
           pr_body: |
             :rocket: This is an automated PR.
 
-            - For N version, used the following hash: ${{ update-n-version.hash-n.outputs.HASH_N }}
-            - For N-1 version, used the following hash: ${{ update-n-1-version.hash-n.outputs.HASH_N_1 }}
+            - For N version, used the following hash: ${{ needs.update-n-version.outputs.hash-n }}
+            - For N-1 version, used the following hash: ${{ needs.update-n-1-version.outputs.hash-n-1 }}
 
             _Created by `/.github/workflows/digest-updater.yaml`
 

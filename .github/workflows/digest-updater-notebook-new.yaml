@@ -11,8 +11,9 @@ on:
       release-n-1:
         required: true
         description: "Provide release N-1 version of the notebooks ex 2023a"
-  schedule:
-    - cron: "0 0 * * 5" #Scheduled every Friday
+  # Put the scheduler on comment until automate the full release procedure
+  # schedule:
+  #   - cron: "0 0 * * 5" #Scheduled every Friday
 env:
   DIGEST_UPDATER_BRANCH: digest-updater-${{ github.run_id }}
   BRANCH_NAME: ${{ github.event.inputs.branch || 'main' }}
@@ -60,6 +61,7 @@ jobs:
         with:
          repository: opendatahub-io/notebooks.git
          ref: ${{ env.RELEASE_VERSION_N }}
+
       - name: Retrive latest weekly commit hash from the release branch
         id: hash-n
         shell: bash
@@ -90,6 +92,7 @@ jobs:
                 sed -i "s|${image}=.*|${image}=$output|" manifests/base/params.env
               done
               git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add manifests/base/params.env && git commit -m "Update file via  ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
+
   update-n-1-version:
     needs: [ initialize, update-n-version ]
     runs-on: ubuntu-latest
@@ -107,6 +110,7 @@ jobs:
         with:
          repository: opendatahub-io/notebooks.git
          ref: ${{ env.RELEASE_VERSION_N_1 }}
+
       - name: Retrive latest weekly commit hash from the release branch
         id: hash-n-1
         shell: bash
@@ -137,6 +141,8 @@ jobs:
                 sed -i "s|${image}=.*|${image}=$output|" manifests/base/params.env
               done
               git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add manifests/base/params.env && git commit -m "Update file via  ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
+
+  # Creates the Pull Request
   open-pull-request:
     needs: [ update-n-version, update-n-1-version ]
     runs-on: ubuntu-latest
@@ -145,6 +151,7 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v3
+
       - name: pull-request
         uses: repo-sync/pull-request@v2
         with:
@@ -154,11 +161,9 @@ jobs:
           pr_label: "automated pr"
           pr_title: "[Digest Updater Action] Update notebook's imageStreams image tag to digest format"
           pr_body: |
-            :rocket: This is an automated PR.
+            :rocket: This is an automated Pull Request.
 
-            - For N version, used the following hash: ${{ needs.update-n-version.outputs.hash-n }}
-            - For N-1 version, used the following hash: ${{ needs.update-n-1-version.outputs.hash-n-1 }}
+            This PR updates the `manifests/base/params.env` file with the latest updated SHA digests of the notebooks (N & N-1).
+            Created by `/.github/workflows/notebooks-digest-updater-upstream.yaml`
 
-            _Created by `/.github/workflows/digest-updater.yaml`
-
-            :exclamation: **IMPORTANT NOTE**: Remember to delete the ` ${{ env.DIGEST_UPDATER_BRANCH }}` branch after merging the changes   
+            :exclamation: **IMPORTANT NOTE**: Remember to delete the ` ${{ env.DIGEST_UPDATER_BRANCH }}` branch after merging the changes

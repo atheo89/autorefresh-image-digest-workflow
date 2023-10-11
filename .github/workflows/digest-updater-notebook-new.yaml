@@ -5,20 +5,20 @@ on:
       branch:
         required: true
         description: "Provide the name of the branch you want to update ex main, vYYYYx etc"
-      release-n:
-        required: true
-        description: "Provide release N version of the notebooks ex 2023b"
-      release-n-1:
-        required: true
-        description: "Provide release N-1 version of the notebooks ex 2023a"
+#      release-n:
+#        required: true
+#        description: "Provide release N version of the notebooks ex 2023b"
+#      release-n-1:
+#        required: true
+#        description: "Provide release N-1 version of the notebooks ex 2023a"
   # Put the scheduler on comment until automate the full release procedure
   # schedule:
   #   - cron: "0 0 * * 5" #Scheduled every Friday
 env:
   DIGEST_UPDATER_BRANCH: digest-updater-${{ github.run_id }}
   BRANCH_NAME: ${{ github.event.inputs.branch || 'main' }}
-  RELEASE_VERSION_N: ${{ github.event.inputs.release-n || '2023b' }}
-  RELEASE_VERSION_N_1: ${{ github.event.inputs.release-n-1 || '2023a' }}
+  RELEASE_VERSION_N: 2023b
+  RELEASE_VERSION_N_1: 2023a
 jobs:
   initialize:
     runs-on: ubuntu-latest

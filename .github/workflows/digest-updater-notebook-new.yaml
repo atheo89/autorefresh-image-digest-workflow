@@ -45,7 +45,7 @@ jobs:
          git push --set-upstream origin ${{ env.DIGEST_UPDATER_BRANCH }}
 
   update-n-version:
-    needs: [ initialize ]
+    needs: [initialize]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -94,7 +94,7 @@ jobs:
               git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add manifests/base/params.env && git commit -m "Update file via  ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
 
   update-n-1-version:
-    needs: [ initialize, update-n-version ]
+    needs: [initialize, update-n-version]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -144,7 +144,7 @@ jobs:
 
   # Creates the Pull Request
   open-pull-request:
-    needs: [ update-n-version, update-n-1-version ]
+    needs: [update-n-version, update-n-1-version]
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write

@@ -19,6 +19,7 @@ spec:
         opendatahub.io/notebook-python-dependencies: '[{"name":"JupyterLab","version":"3.5"},{"name":"Notebook","version":"6.5"}]'
         openshift.io/imported-from: quay.io/opendatahub/workbench-images
         opendatahub.io/workbench-image-recommended: 'true'
+        opendatahub.io/notebook-build-commit: $(odh-minimal-gpu-notebook-image-commit-n)
     from:
       kind: DockerImage
       name: quay.io/opendatahub/workbench-images:cuda-jupyter-minimal-ubi9-python-3.9-2023a-weekly
@@ -30,6 +31,7 @@ spec:
         opendatahub.io/notebook-software: '[{"name":"Python","version":"v3.8"}]'
         opendatahub.io/notebook-python-dependencies: '[{"name":"JupyterLab","version":"3.2"},{"name":"Notebook","version":"6.4"}]'
         openshift.io/imported-from: quay.io/opendatahub/notebooks
+        opendatahub.io/notebook-build-commit: $(odh-minimal-gpu-notebook-image-commit-n-1)
     from:
       kind: DockerImage
       name: quay.io/opendatahub/notebooks@sha256:c13cd3410e31184986d44d36ba663ca2f2225d14e5b086b09fe221219a94b6de

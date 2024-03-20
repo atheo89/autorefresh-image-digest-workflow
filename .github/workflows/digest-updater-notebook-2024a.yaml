@@ -85,7 +85,7 @@ jobs:
                 digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
                 output=$registry@$digest
                 echo "NEW: " $output
-            done
+              done
 
   # update-n-version:
   #   needs: [initialize]

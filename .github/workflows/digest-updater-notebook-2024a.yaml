@@ -68,7 +68,9 @@ jobs:
           uses: actions/checkout@v4
           with:
             ref: ${{ env.DIGEST_UPDATER_BRANCH }}
+
         - name: Update Runtimes
+          shell: bash
           run: |
               echo Latest commit is: ${{ steps.hash-n.outputs.HASH_N }} on ${{ env.RELEASE_VERSION_N}}
               PATHS=("jupyter/datascience/ubi8-python-3.8/runtime-images/datascience-ubi8-py38.json" "jupyter/datascience/ubi9-python-3.9/runtime-images/datascience-ubi8-py39.json")

@@ -86,12 +86,12 @@ jobs:
                 output=$registry@$digest
                 echo "NEW: " $output
                 jq --arg output "$output" '.metadata.image_name = $output' "$path" > "$path.tmp" && mv "$path.tmp" "$path"
-                if [[ $(git status --porcelain | wc -l) -gt 0 ]]; then
-                  git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add $path && git commit -m "Update file via  ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
-                else
-                  echo "There were no changes detected in the images for the ${{ env.RELEASE_VERSION_N}}"
-                fi
               done
+              if [[ $(git status --porcelain | wc -l) -gt 0 ]]; then
+                git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add jupyter/datascience/* && git commit -m "Update file via  ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
+              else
+                echo "There were no changes detected in the images for the ${{ env.RELEASE_VERSION_N}}"
+              fi
 
 
   # update-n-version:

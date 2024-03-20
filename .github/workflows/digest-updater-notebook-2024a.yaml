@@ -72,7 +72,7 @@ jobs:
       - name: Fetch digest, and update the param.env file
         run: |
               echo Latest commit is: ${{ steps.hash-n.outputs.HASH_N }} on ${{ env.RELEASE_VERSION_N}}
-              IMAGES=("odh-minimal-notebook-image-n" "odh-minimal-gpu-notebook-image-n" "odh-pytorch-gpu-notebook-image-n" "odh-generic-data-science-notebook-image-n" "odh-tensorflow-gpu-notebook-image-n" "odh-trustyai-notebook-image-n")
+              IMAGES=("odh-minimal-notebook-image-n" "odh-minimal-gpu-notebook-image-n" "odh-pytorch-gpu-notebook-image-n" "odh-generic-data-science-notebook-image-n" "odh-tensorflow-gpu-notebook-image-n" "odh-trustyai-notebook-image-n" "odh-codeserver-notebook-n" "odh-rstudio-notebook-n" "odh-rstudio-gpu-notebook-n")
               for ((i=0;i<${#IMAGES[@]};++i)); do
                 image=${IMAGES[$i]}
                 echo $image
@@ -91,7 +91,7 @@ jobs:
       - name: Fetch digest, and update the commit.env file
         run: |
             echo Latest commit is: ${{ steps.hash-n.outputs.HASH_N }} on ${{ env.RELEASE_VERSION_N}}
-            COMMIT=("odh-minimal-notebook-image-commit-n" "odh-minimal-gpu-notebook-image-commit-n" "odh-pytorch-gpu-notebook-image-commit-n" "odh-generic-data-science-notebook-image-commit-n" "odh-tensorflow-gpu-notebook-image-commit-n" "odh-trustyai-notebook-image-commit-n")
+            COMMIT=("odh-minimal-notebook-image-commit-n" "odh-minimal-gpu-notebook-image-commit-n" "odh-pytorch-gpu-notebook-image-commit-n" "odh-generic-data-science-notebook-image-commit-n" "odh-tensorflow-gpu-notebook-image-commit-n" "odh-trustyai-notebook-image-commit-n" "odh-codeserver-notebook-n" "odh-rstudio-notebook-n" "odh-rstudio-gpu-notebook-n")
             for val in "${COMMIT[@]}"; do
               echo $val
               sed -i "s|${val}=.*|${val}=${{ steps.hash-n.outputs.HASH_N }}|" manifests/base/commit.env
@@ -130,7 +130,7 @@ jobs:
       - name: Fetch digest, and update the param.env file
         run: |
               echo Latest commit is: ${{ steps.hash-n-1.outputs.HASH_N_1 }} on ${{ env.RELEASE_VERSION_N_1}}
-              IMAGES=("odh-minimal-notebook-image-n-1" "odh-minimal-gpu-notebook-image-n-1" "odh-pytorch-gpu-notebook-image-n-1" "odh-generic-data-science-notebook-image-n-1" "odh-tensorflow-gpu-notebook-image-n-1" "odh-trustyai-notebook-image-n-1")
+              IMAGES=("odh-minimal-notebook-image-n-1" "odh-minimal-gpu-notebook-image-n-1" "odh-pytorch-gpu-notebook-image-n-1" "odh-generic-data-science-notebook-image-n-1" "odh-tensorflow-gpu-notebook-image-n-1" "odh-trustyai-notebook-image-n-1" "odh-codeserver-notebook-n-1" "odh-rstudio-notebook-n-1" "odh-rstudio-gpu-notebook-n-1")
               for ((i=0;i<${#IMAGES[@]};++i)); do
                 image=${IMAGES[$i]}
                 echo $image
@@ -149,7 +149,7 @@ jobs:
       - name: Fetch digest, and update the commit.env file
         run: |
               echo Latest commit is: ${{ steps.hash-n-1.outputs.HASH_N_1 }} on ${{ env.RELEASE_VERSION_N_1}}
-              COMMIT=("odh-minimal-notebook-image-commit-n-1" "odh-minimal-gpu-notebook-image-commit-n-1" "odh-pytorch-gpu-notebook-image-commit-n-1" "odh-generic-data-science-notebook-image-commit-n-1" "odh-tensorflow-gpu-notebook-image-commit-n-1" "odh-trustyai-notebook-image-commit-n-1")
+              COMMIT=("odh-minimal-notebook-image-commit-n-1" "odh-minimal-gpu-notebook-image-commit-n-1" "odh-pytorch-gpu-notebook-image-commit-n-1" "odh-generic-data-science-notebook-image-commit-n-1" "odh-tensorflow-gpu-notebook-image-commit-n-1" "odh-trustyai-notebook-image-commit-n-1" "odh-codeserver-notebook-n-1" "odh-rstudio-notebook-n-1" "odh-rstudio-gpu-notebook-n-1")
               for val in "${COMMIT[@]}"; do
                 echo $val
                 sed -i "s|${val}=.*|${val}=${{ steps.hash-n-1.outputs.HASH_N_1 }}|" manifests/base/commit.env

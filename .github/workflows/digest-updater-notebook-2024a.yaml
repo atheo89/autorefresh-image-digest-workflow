@@ -28,7 +28,7 @@ jobs:
 
       # Checkout the branch
       - name: Checkout branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.BRANCH_NAME }}
 
@@ -85,8 +85,7 @@ jobs:
                 digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
                 output=$registry@$digest
                 echo "NEW: " $output
-                json_modified=$(jq --arg output "$output" '.metadata.image_name |= $output' "$path")
-                echo "$json_modified" > "$path"
+                jq '.metadata.image_name = $output' $path|sponge $path
               done
 
   # update-n-version:

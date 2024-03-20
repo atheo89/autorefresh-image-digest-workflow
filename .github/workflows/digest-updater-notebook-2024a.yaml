@@ -85,8 +85,7 @@ jobs:
                 digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
                 output=$registry@$digest
                 echo "NEW: " $output
-                # Use sed to replace the image_name value in the JSON file
-                sed -i "s#\"image_name\": \".*\"#\"image_name\": \"$output\"#" "$path"
+                jq --arg output "$output" '.metadata.image_name = $output' "$path" > "$path.tmp" && mv "$path.tmp" "$path"
               done
 
   # update-n-version:

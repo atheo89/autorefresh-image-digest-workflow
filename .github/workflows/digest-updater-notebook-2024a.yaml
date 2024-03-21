@@ -69,40 +69,74 @@ jobs:
           with:
             ref: ${{ env.DIGEST_UPDATER_BRANCH }}
 
-        - name: Update Runtimes
-          shell: bash
-          run: |
-              echo Latest commit is: ${{ steps.hash-n.outputs.HASH_N }} on ${{ env.RELEASE_VERSION_N}}
-              PATHS=("jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"
-              "jupyter/datascience/anaconda-python-3.8/runtime-images/pytorch-ubi8-py38.json"
-              "jupyter/datascience/anaconda-python-3.8/runtime-images/tensorflow-ubi8-py38.json"
-              "jupyter/datascience/anaconda-python-3.8/runtime-images/ubi8-py38.json"
-              "jupyter/datascience/ubi8-python-3.8/runtime-images/datascience-ubi8-py38.json"
-              "jupyter/datascience/ubi8-python-3.8/runtime-images/pytorch-ubi8-py38.json"
-              "jupyter/datascience/ubi8-python-3.8/runtime-images/tensorflow-ubi8-py38.json"
-              "jupyter/datascience/ubi8-python-3.8/runtime-images/ubi8-py38.json"
-              "jupyter/datascience/ubi9-python-3.9/runtime-images/datascience-ubi9-py39.json"
-              "jupyter/datascience/ubi9-python-3.9/runtime-images/pytorch-ubi9-py39.json"
-              "jupyter/datascience/ubi9-python-3.9/runtime-images/tensorflow-ubi9-py39.json"
-              "jupyter/datascience/ubi9-python-3.9/runtime-images/ubi9-py39.json")
-              for ((i=0;i<${#PATHS[@]};++i)); do
-                path=${PATHS[$i]}
-                img=$(cat ${path} | jq -r '.metadata.image_name')
-                echo "OLD: " $img
-                registry=$(echo $img | cut -d '@' -f1)
-                src_tag=$(skopeo inspect docker://$img | jq '.Env[] | select(startswith("OPENSHIFT_BUILD_NAME=")) | split("=")[1]' | tr -d '"' | sed 's/-amd64$//')
-                regex="$src_tag-${{ env.RELEASE_VERSION_N}}-\d+-${{ steps.hash-n.outputs.HASH_N }}"
-                latest_tag=$(skopeo inspect docker://$img | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
-                digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
-                output=$registry@$digest
-                echo "NEW: " $output
-                jq --arg output "$output" '.metadata.image_name = $output' "$path" > "$path.tmp" && mv "$path.tmp" "$path"
-              done
-              if [[ $(git status --porcelain | wc -l) -gt 0 ]]; then
-                git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add jupyter/datascience/* && git commit -m "Update file via  ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
-              else
-                echo "There were no changes detected in the images for the ${{ env.RELEASE_VERSION_N}}"
-              fi
+        - name: Update runtimes
+              run: |
+                declare -A image_paths=(
+                  ["jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"]="jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"
+                  ["jupyter/datascience/ubi8-python-3.8/runtime-images/datascience-ubi8-py38.json"]="jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"
+                  ["jupyter/datascience/ubi9-python-3.9/runtime-images/datascience-ubi9-py39.json"]="jupyter/datascience/ubi9-python-3.9/runtime-images/datascience-ubi9-py39.json"
+                  # Add more mappings as needed
+                )
+
+                for image_path in "${!image_paths[@]}"; do
+                  target_path="${image_paths[$image_path]}"
+                  image=$(cat "$image_path")
+                  registry=$(echo "$image" | cut -d '@' -f1)
+                  src_tag=$(echo "$image" | jq -r '.metadata.image_name' | cut -d ':' -f2)
+                  regex="$src_tag-${{ env.RELEASE_VERSION_N }}-\d+-${{ steps.hash-n.outputs.HASH_N }}"
+                  latest_tag=$(skopeo inspect docker://"$image" | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
+                  digest=$(skopeo inspect docker://"$registry":"$latest_tag" | jq -r .Digest)
+                  output="$registry@$digest"
+                  echo "NEW: $output" >> "$target_path.tmp"
+                done
+
+                for image_path in "${!image_paths[@]}"; do
+                  target_path="${image_paths[$image_path]}"
+                  if [ -s "${target_path}.tmp" ]; then
+                    mv "${target_path}.tmp" "$target_path"
+                  fi
+                done
+
+                if git diff --quiet; then
+                  echo "No changes detected in the images for ${{ env.RELEASE_VERSION_N }}"
+                else
+                  git fetch origin ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin ${{ env.DIGEST_UPDATER_BRANCH }}
+                  git add . && git commit -m "Update files via ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin ${{ env.DIGEST_UPDATER_BRANCH }}
+                fi
+
+        # - name: Update Runtimes
+        #   run: |
+        #       echo Latest commit is: ${{ steps.hash-n.outputs.HASH_N }} on ${{ env.RELEASE_VERSION_N}}
+        #       PATHS=("jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"
+        #       "jupyter/datascience/anaconda-python-3.8/runtime-images/pytorch-ubi8-py38.json"
+        #       "jupyter/datascience/anaconda-python-3.8/runtime-images/tensorflow-ubi8-py38.json"
+        #       "jupyter/datascience/anaconda-python-3.8/runtime-images/ubi8-py38.json"
+        #       "jupyter/datascience/ubi8-python-3.8/runtime-images/datascience-ubi8-py38.json"
+        #       "jupyter/datascience/ubi8-python-3.8/runtime-images/pytorch-ubi8-py38.json"
+        #       "jupyter/datascience/ubi8-python-3.8/runtime-images/tensorflow-ubi8-py38.json"
+        #       "jupyter/datascience/ubi8-python-3.8/runtime-images/ubi8-py38.json"
+        #       "jupyter/datascience/ubi9-python-3.9/runtime-images/datascience-ubi9-py39.json"
+        #       "jupyter/datascience/ubi9-python-3.9/runtime-images/pytorch-ubi9-py39.json"
+        #       "jupyter/datascience/ubi9-python-3.9/runtime-images/tensorflow-ubi9-py39.json"
+        #       "jupyter/datascience/ubi9-python-3.9/runtime-images/ubi9-py39.json")
+        #       for ((i=0;i<${#PATHS[@]};++i)); do
+        #         path=${PATHS[$i]}
+        #         img=$(cat ${path} | jq -r '.metadata.image_name')
+        #         echo "OLD: " $img
+        #         registry=$(echo $img | cut -d '@' -f1)
+        #         src_tag=$(skopeo inspect docker://$img | jq '.Env[] | select(startswith("OPENSHIFT_BUILD_NAME=")) | split("=")[1]' | tr -d '"' | sed 's/-amd64$//')
+        #         regex="$src_tag-${{ env.RELEASE_VERSION_N}}-\d+-${{ steps.hash-n.outputs.HASH_N }}"
+        #         latest_tag=$(skopeo inspect docker://$img | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
+        #         digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
+        #         output=$registry@$digest
+        #         echo "NEW: " $output
+        #         jq --arg output "$output" '.metadata.image_name = $output' "$path" > "$path.tmp" && mv "$path.tmp" "$path"
+        #       done
+        #       if [[ $(git status --porcelain | wc -l) -gt 0 ]]; then
+        #         git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add jupyter/datascience/* && git commit -m "Update file via  ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
+        #       else
+        #         echo "There were no changes detected in the images for the ${{ env.RELEASE_VERSION_N}}"
+        #       fi
 
   update-n-version:
     needs: [initialize]
@@ -221,7 +255,7 @@ jobs:
               if [[ $(git status --porcelain | wc -l) -gt 0 ]]; then
                 git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add notebook-images/base/params.env && git commit -m "Update file via  ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
               else
-                  echo "There were no changes detected in the images for the ${{ env.RELEASE_VERSION_N}}"
+                  echo "There were no changes detected in the images for the ${{ env.RELEASE_VERSION_N_1}}"
               fi
       - name: Update the commit.env file
         run: |

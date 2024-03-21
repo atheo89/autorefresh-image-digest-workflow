@@ -81,9 +81,10 @@ jobs:
                 echo "$name" #datascience-ubi8
                 py_version=$(echo 'path="jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"' | grep -o 'python-[0-9]\.[0-9]')
                 echo $py_version
-                registry="quay.io/opendatahub/workbench-images:"
+                registry="quay.io/opendatahub/workbench-images"
                # src_tag=$(skopeo inspect docker://$img | jq '.Env[] | select(startswith("OPENSHIFT_BUILD_NAME=")) | split("=")[1]' | tr -d '"' | sed 's/-amd64$//')
                 regex="runtime-$name-$py_version-${{ env.RELEASE_VERSION_N}}-\d+-${{ steps.hash-n.outputs.HASH_N }}"
+                echo "Checking for: "  $regex
                 latest_tag=$(skopeo inspect docker://$img | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
                 digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
                 output=$registry@$digest

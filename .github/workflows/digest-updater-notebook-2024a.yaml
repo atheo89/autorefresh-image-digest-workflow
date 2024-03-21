@@ -82,7 +82,7 @@ jobs:
                 # Handling specific cases
                 if [[ $name == *tensorflow* ]]; then
                     name="cuda-tensorflow"
-                elif [[ $name == *ubi* ]]; then
+                elif [[ $name == ubi* ]]; then
                     name="minimal-$name"
                 fi
                 registry=$(echo $img | cut -d '@' -f1)

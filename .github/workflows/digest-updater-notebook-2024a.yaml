@@ -70,7 +70,7 @@ jobs:
             ref: ${{ env.DIGEST_UPDATER_BRANCH }}
 
         - name: Update runtimes
-              run: |
+          run: |
                 declare -A image_paths=(
                   ["jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"]="jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"
                   ["jupyter/datascience/ubi8-python-3.8/runtime-images/datascience-ubi8-py38.json"]="jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"

@@ -238,7 +238,7 @@ jobs:
               fi
 
   open-pull-request:
-    needs: [update-n-version, update-n-1-version]
+    needs: [update-n-version, update-n-1-version, update-runtimes]
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write

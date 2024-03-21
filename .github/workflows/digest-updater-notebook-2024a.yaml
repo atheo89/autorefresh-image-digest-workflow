@@ -80,21 +80,14 @@ jobs:
 
               for image_path in "${!image_paths[@]}"; do
                 target_path="${image_paths[$image_path]}"
-                image=$(cat "$image_path")
-                registry=$(echo "$image" | cut -d '@' -f1)
-                src_tag=$(echo "$image" | jq -r '.metadata.image_name' | cut -d ':' -f2)
+                img=$(cat "$image_path" | jq -r '.metadata.image_name')
+                registry=$(echo "$img" | cut -d '@' -f1)
+                src_tag=$(echo "$img" | cut -d ':' -f2)
                 regex="$src_tag-${{ env.RELEASE_VERSION_N }}-\d+-${{ steps.hash-n.outputs.HASH_N }}"
-                latest_tag=$(skopeo inspect docker://"$image" | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
+                latest_tag=$(skopeo inspect docker://"$img" | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
                 digest=$(skopeo inspect docker://"$registry":"$latest_tag" | jq -r .Digest)
                 output="$registry@$digest"
-                echo "NEW: $output" >> "$target_path.tmp"
-              done
-
-              for image_path in "${!image_paths[@]}"; do
-                target_path="${image_paths[$image_path]}"
-                if [ -s "${target_path}.tmp" ]; then
-                  mv "${target_path}.tmp" "$target_path"
-                fi
+                jq --arg output "$output" '.metadata.image_name = $output' "$target_path" > "$target_path.tmp" && mv "$target_path.tmp" "$target_path"
               done
 
               if git diff --quiet; then

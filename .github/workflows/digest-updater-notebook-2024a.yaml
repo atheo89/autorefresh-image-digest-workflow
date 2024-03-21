@@ -80,9 +80,9 @@ jobs:
                 name=$(echo "$path" | sed 's#.*runtime-images/\(.*\)-py.*#\1#')
                 # Handling specific cases
                 if [[ $name == *tensorflow* ]]; then
-                    name="cuda-tensorflow";
-                elif [[ $py_version == *ubi*; then
-                    py_version="minimal-$py_version";
+                    name="cuda-tensorflow"
+                elif [[ $py_version == *ubi* ]]; then
+                    py_version="minimal-$py_version"
                 fi
                 py_version=$(echo 'path="jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"' | grep -o 'python-[0-9]\.[0-9]')
                 registry=$(echo $img | cut -d '@' -f1)

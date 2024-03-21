@@ -39,9 +39,152 @@ jobs:
          git checkout -b ${{ env.DIGEST_UPDATER_BRANCH }}
          git push --set-upstream origin ${{ env.DIGEST_UPDATER_BRANCH }}
 
+  update-runtimes:
+      needs: [initialize]
+      runs-on: ubuntu-latest
+      permissions:
+        contents: write
+      steps:
+        - name: Configure Git
+          run: |
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git config --global user.name "GitHub Actions"
 
-  # update-n-version:
-  #   needs: [initialize]
+        # Get latest build commit from the https://github.com/red-hat-data-services/notebooks/${release_branch} using this as identifier for the latest tag name
+        - name: Retrive latest commit hash from the release branch
+          id: hash-n
+          shell: bash
+          run: |
+            PAYLOAD=$(curl --silent -H 'Accept: application/vnd.github.v4.raw' https://api.github.com/repos/red-hat-data-services/notebooks/commits?sha=release-$RELEASE_VERSION_N&per_page=1)
+            echo "HASH_N=$(echo $PAYLOAD | jq -r '.[0].sha[0:7]')" >> ${GITHUB_OUTPUT}
+
+
+        # Checkout the release branch to apply the updates
+        - name: Checkout release branch
+          uses: actions/checkout@v4
+          with:
+            ref: ${{ env.DIGEST_UPDATER_BRANCH }}
+
+        - name: Update Runtimes
+          run: |
+              echo Latest commit is: ${{ steps.hash-n.outputs.HASH_N }} on ${{ env.RELEASE_VERSION_N}}
+              PATHS=("jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"
+              "jupyter/datascience/anaconda-python-3.8/runtime-images/pytorch-ubi8-py38.json"
+              "jupyter/datascience/anaconda-python-3.8/runtime-images/tensorflow-ubi8-py38.json"
+              "jupyter/datascience/anaconda-python-3.8/runtime-images/ubi8-py38.json"
+              "jupyter/datascience/ubi8-python-3.8/runtime-images/datascience-ubi8-py38.json"
+              "jupyter/datascience/ubi8-python-3.8/runtime-images/pytorch-ubi8-py38.json"
+              "jupyter/datascience/ubi8-python-3.8/runtime-images/tensorflow-ubi8-py38.json"
+              "jupyter/datascience/ubi8-python-3.8/runtime-images/ubi8-py38.json"
+              "jupyter/datascience/ubi9-python-3.9/runtime-images/datascience-ubi9-py39.json"
+              "jupyter/datascience/ubi9-python-3.9/runtime-images/pytorch-ubi9-py39.json"
+              "jupyter/datascience/ubi9-python-3.9/runtime-images/tensorflow-ubi9-py39.json"
+              "jupyter/datascience/ubi9-python-3.9/runtime-images/ubi9-py39.json")
+
+              for ((i=0;i<${#PATHS[@]};++i)); do
+                path=${PATHS[$i]}
+                img=$(cat ${path} | jq -r '.metadata.image_name')
+                name=$(echo "$path" | sed 's#.*runtime-images/\(.*\)-py.*#\1#')
+                py_version=$(echo "$path" | grep -o 'python-[0-9]\.[0-9]')
+                # Handling specific cases
+                if [[ $name == *tensorflow* ]]; then
+                    name="cuda-$name"
+                elif [[ $name == ubi* ]]; then
+                    name="minimal-$name"
+                fi
+                registry=$(echo $img | cut -d '@' -f1)
+                regex="runtime-$name-$py_version-${{ env.RELEASE_VERSION_N}}-\d+-${{ steps.hash-n.outputs.HASH_N }}"
+                echo "CHECKING: "  $regex
+                latest_tag=$(skopeo inspect docker://$img | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
+                digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
+                output=$registry@$digest
+                echo "NEW: " $output
+                jq --arg output "$output" '.metadata.image_name = $output' "$path" > "$path.tmp" && mv "$path.tmp" "$path"
+              done
+              if [[ $(git status --porcelain | wc -l) -gt 0 ]]; then
+                git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add jupyter/datascience/* && git commit -m "Update file via  ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
+              else
+                echo "There were no changes detected in the images for the ${{ env.RELEASE_VERSION_N}}"
+              fi
+
+
+  update-n-version:
+    needs: [initialize]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Configure Git
+        run: |
+         git config --global user.email "github-actions[bot]@users.noreply.github.com"
+         git config --global user.name "GitHub Actions"
+
+      # Get latest build commit from the https://github.com/red-hat-data-services/notebooks/${release_branch} using this as identifier for the latest tag name
+      - name: Retrive latest commit hash from the release branch
+        id: hash-n
+        shell: bash
+        run: |
+          PAYLOAD=$(curl --silent -H 'Accept: application/vnd.github.v4.raw' https://api.github.com/repos/red-hat-data-services/notebooks/commits?sha=release-$RELEASE_VERSION_N&per_page=1)
+          echo "HASH_N=$(echo $PAYLOAD | jq -r '.[0].sha[0:7]')" >> ${GITHUB_OUTPUT}
+
+      # Checkout the release branch to apply the updates
+      - name: Checkout release branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DIGEST_UPDATER_BRANCH }}
+
+      - name: Fetch digest, and update the params.env file
+        shell: bash
+        continue-on-error: true
+        run: |
+              echo Latest commit is: ${{ steps.hash-n.outputs.HASH_N }} on ${{ env.RELEASE_VERSION_N}}
+               echo Latest commit is: ${{ steps.hash-n.outputs.HASH_N }} on ${{ env.RELEASE_VERSION_N}}
+              IMAGES=("odh-minimal-notebook-image-n" "odh-minimal-gpu-notebook-image-n" "odh-pytorch-gpu-notebook-image-n" "odh-generic-data-science-notebook-image-n" "odh-tensorflow-gpu-notebook-image-n" "odh-trustyai-notebook-image-n" "odh-codeserver-notebook-n")
+              REGEXES=("v2-${{ env.RELEASE_VERSION_N }}-\d{8}+-${{ steps.hash-n.outputs.HASH_N }}" "cuda-[a-z]+-minimal-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION_N }}-\d{8}-${{ steps.hash-n.outputs.HASH_N }}" "v2-${{ env.RELEASE_VERSION_N }}-\d{8}+-${{ steps.hash-n.outputs.HASH_N }}" \
+                       "v2-${{ env.RELEASE_VERSION_N }}-\d{8}+-${{ steps.hash-n.outputs.HASH_N }}" "cuda-[a-z]+-tensorflow-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION_N }}-\d{8}-${{ steps.hash-n.outputs.HASH_N }}" "v2-${{ env.RELEASE_VERSION_N }}-\d{8}+-${{ steps.hash-n.outputs.HASH_N }}" \
+                       "codeserver-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION_N }}-\d{8}-${{ steps.hash-n.outputs.HASH_N }}")
+
+              for ((i=0;i<${#IMAGES[@]};++i)); do
+                image=${IMAGES[$i]}
+                echo $image
+                regex=${REGEXES[$i]}
+                img=$(cat manifests/base/params.env | grep -E "${image}=" | cut -d '=' -f2)
+                registry=$(echo $img | cut -d '@' -f1)
+                latest_tag=$(skopeo inspect docker://$img | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
+                digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
+                output=$registry@$digest
+                echo $output
+                sed -i "s|${image}=.*|${image}=$output|" manifests/base/params.env
+              done
+              if [[ $(git status --porcelain | wc -l) -gt 0 ]]; then
+                git fetch origin ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin ${{ env.DIGEST_UPDATER_BRANCH }} && git add manifests/base/params.env && git commit -m "Update images for release N via ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin ${{ env.DIGEST_UPDATER_BRANCH }}
+              else
+                echo "There were no changes detected in the images for the ${{ env.RELEASE_VERSION_N}}"
+              fi
+
+      - name: Fetch digest, and update the commit.env file
+        run: |
+            echo Latest commit is: ${{ steps.hash-n.outputs.HASH_N }} on ${{ env.RELEASE_VERSION_N}}
+            COMMIT=("odh-minimal-notebook-image-commit-n"
+              "odh-minimal-gpu-notebook-image-commit-n"
+              "odh-pytorch-gpu-notebook-image-commit-n"
+              "odh-generic-data-science-notebook-image-commit-n"
+              "odh-tensorflow-gpu-notebook-image-commit-n"
+              "odh-trustyai-notebook-image-commit-n"
+              "odh-codeserver-notebook-n")
+
+            for val in "${COMMIT[@]}"; do
+              echo $val
+              sed -i "s|${val}=.*|${val}=${{ steps.hash-n.outputs.HASH_N }}|" manifests/base/commit.env
+            done
+            if [[ $(git status --porcelain | wc -l) -gt 0 ]]; then
+              git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add manifests/base/commit.env && git commit -m "Update image commits for release N via ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
+            else
+              echo "There were no changes detected in the images for the ${{ env.RELEASE_VERSION_N}}"
+            fi
+
+  # update-n-1-version:
+  #   needs: [initialize, update-n-version]
   #   runs-on: ubuntu-latest
   #   permissions:
   #     contents: write
@@ -51,22 +194,17 @@ jobs:
   #        git config --global user.email "github-actions[bot]@users.noreply.github.com"
   #        git config --global user.name "GitHub Actions"
 
-  #     # Get the latest weekly build commit hash: https://github.com/red-hat-data-services/notebooks/tree/release-2024a
-  #     - name: Checkout upstream notebooks repo
-  #       uses: actions/checkout@v3
-  #       with:
-  #         repository: red-hat-data-services/notebooks
-  #         ref: release-${{ env.RELEASE_VERSION_N }}
-
-  #     - name: Retrieve latest weekly commit hash from the release branch
-  #       id: hash-n
-  #       shell: bash
-  #       run: |
-  #         echo "HASH_N=$(git rev-parse --short HEAD)" >> ${GITHUB_OUTPUT}
+  #       # Get latest build commit from the https://github.com/red-hat-data-services/notebooks/${release_branch} using this as identifier for the latest tag name
+  #       - name: Retrive latest commit hash from the release branch
+  #         id: hash-n-1
+  #         shell: bash
+  #         run: |
+  #           PAYLOAD=$(curl --silent -H 'Accept: application/vnd.github.v4.raw' https://api.github.com/repos/red-hat-data-services/notebooks/commits?sha=release-$RELEASE_VERSION_N_1&per_page=1)
+  #           echo "HASH_N_1=$(echo $PAYLOAD | jq -r '.[0].sha[0:7]')" >> ${GITHUB_OUTPUT}
 
   #     # Checkout the release branch to apply the updates
   #     - name: Checkout release branch
-  #       uses: actions/checkout@v3
+  #       uses: actions/checkout@v4
   #       with:
   #         ref: ${{ env.DIGEST_UPDATER_BRANCH }}
 
@@ -74,10 +212,11 @@ jobs:
   #       shell: bash
   #       continue-on-error: true
   #       run: |
-  #             echo Latest commit is: ${{ steps.hash-n.outputs.HASH_N }} on ${{ env.RELEASE_VERSION_N}}
-  #             IMAGES=("odh-minimal-notebook-image-n" "odh-minimal-gpu-notebook-image-n" "odh-pytorch-gpu-notebook-image-n" "odh-generic-data-science-notebook-image-n" "odh-tensorflow-gpu-notebook-image-n" "odh-trustyai-notebook-image-n")
-  #             REGEXES=("v2-${{ env.RELEASE_VERSION_N }}-\d{8}+-${{ steps.hash-n.outputs.HASH_N }}" "cuda-[a-z]+-minimal-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION_N }}-\d{8}-${{ steps.hash-n.outputs.HASH_N }}" "v2-${{ env.RELEASE_VERSION_N }}-\d{8}+-${{ steps.hash-n.outputs.HASH_N }}" \
-  #                      "v2-${{ env.RELEASE_VERSION_N }}-\d{8}+-${{ steps.hash-n.outputs.HASH_N }}" "cuda-[a-z]+-tensorflow-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION_N }}-\d{8}-${{ steps.hash-n.outputs.HASH_N }}" "v2-${{ env.RELEASE_VERSION_N }}-\d{8}+-${{ steps.hash-n.outputs.HASH_N }}")
+  #             echo Latest commit is: ${{ steps.hash-n-1.outputs.HASH_N_1 }} on ${{ env.RELEASE_VERSION_N_1}}
+  #             IMAGES=("odh-minimal-notebook-image-n-1" "odh-minimal-gpu-notebook-image-n-1" "odh-pytorch-gpu-notebook-image-n-1" "odh-generic-data-science-notebook-image-n-1" "odh-tensorflow-gpu-notebook-image-n-1" "odh-trustyai-notebook-image-n-1")
+  #             REGEXES=("v2-${{ env.RELEASE_VERSION_N_1 }}-\d{8}+-${{ steps.hash-n-1.outputs.HASH_N_1 }}" "cuda-[a-z]+-minimal-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION_N_1 }}-\d{8}-${{ steps.hash-n-1.outputs.HASH_N_1 }}" "v2-${{ env.RELEASE_VERSION_N_1 }}-\d{8}+-${{ steps.hash-n-1.outputs.HASH_N_1 }}" \
+  #                      "v2-${{ env.RELEASE_VERSION_N_1 }}-\d{8}+-${{ steps.hash-n-1.outputs.HASH_N_1 }}" "cuda-[a-z]+-tensorflow-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION_N_1 }}-\d{8}-${{ steps.hash-n-1.outputs.HASH_N_1 }}" "v2-${{ env.RELEASE_VERSION_N_1 }}-\d{8}+-${{ steps.hash-n-1.outputs.HASH_N_1 }}")
+
   #             for ((i=0;i<${#IMAGES[@]};++i)); do
   #               image=${IMAGES[$i]}
   #               echo $image
@@ -90,397 +229,56 @@ jobs:
   #               echo $output
   #               sed -i "s|${image}=.*|${image}=$output|" manifests/base/params.env
   #             done
-  #             git fetch origin ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin ${{ env.DIGEST_UPDATER_BRANCH }} && git add manifests/base/params.env && git commit -m "Update images for release N via ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin ${{ env.DIGEST_UPDATER_BRANCH }}
+  #             if [[ $(git status --porcelain | wc -l) -gt 0 ]]; then
+  #               git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add manifests/base/params.env && git commit -m "Update images for release N-1 via ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
+  #             else
+  #               echo "There were no changes detected in the images for the ${{ env.RELEASE_VERSION_N}}"
+  #             fi
 
-      # - name: Fetch digest, and update the commit.env file
-      #   run: |
-      #       echo Latest commit is: ${{ steps.hash-n.outputs.HASH_N }} on ${{ env.RELEASE_VERSION_N}}
-      #       COMMIT=("odh-minimal-notebook-image-commit-n" "odh-minimal-gpu-notebook-image-commit-n" "odh-pytorch-gpu-notebook-image-commit-n" "odh-generic-data-science-notebook-image-commit-n" "odh-tensorflow-gpu-notebook-image-commit-n" "odh-trustyai-notebook-image-commit-n")
-      #       for val in "${COMMIT[@]}"; do
-      #         echo $val
-      #         sed -i "s|${val}=.*|${val}=${{ steps.hash-n.outputs.HASH_N }}|" manifests/base/commit.env
-      #       done
-      #       git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add manifests/base/commit.env && git commit -m "Update image commits for release N via ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
+  #     - name: Fetch digest, and update the commit.env file
+  #       run: |
+  #             echo Latest commit is: ${{ steps.hash-n-1.outputs.HASH_N_1 }} on ${{ env.RELEASE_VERSION_N_1}}
+  #             COMMIT=("odh-minimal-notebook-image-commit-n-1"
+  #             "odh-minimal-gpu-notebook-image-commit-n-1"
+  #             "odh-pytorch-gpu-notebook-image-commit-n-1"
+  #             "odh-generic-data-science-notebook-image-commit-n-1"
+  #             "odh-tensorflow-gpu-notebook-image-commit-n-1"
+  #             "odh-trustyai-notebook-image-commit-n-1"
+  #             "odh-codeserver-notebook-n-1")
 
-  update-n-1-version:
-    needs: [initialize]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Configure Git
-        run: |
-         git config --global user.email "github-actions[bot]@users.noreply.github.com"
-         git config --global user.name "GitHub Actions"
-
-      # Get the latest weekly build commit hash: https://github.com/red-hat-data-services/notebooks/tree/release-2023b
-      - name: Checkout upstream notebooks repo
-        uses: actions/checkout@v3
-        with:
-          repository: red-hat-data-services/notebooks
-          ref: release-${{ env.RELEASE_VERSION_N_1 }}
-
-      - name: Retrieve latest weekly commit hash from the release branch
-        id: hash-n-1
-        shell: bash
-        run: |
-          echo "HASH_N_1=$(git rev-parse --short HEAD)" >> ${GITHUB_OUTPUT}
-
-      # Checkout the release branch to apply the updates
-      - name: Checkout release branch
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ env.DIGEST_UPDATER_BRANCH }}
-
-      - name: Fetch digest, and update the params.env file
-        shell: bash
-        continue-on-error: true
-        run: |
-              echo Latest commit is: ${{ steps.hash-n-1.outputs.HASH_N_1 }} on ${{ env.RELEASE_VERSION_N_1}}
-              IMAGES=("odh-minimal-notebook-image-n-1" "odh-minimal-gpu-notebook-image-n-1" "odh-pytorch-gpu-notebook-image-n-1" "odh-generic-data-science-notebook-image-n-1" "odh-tensorflow-gpu-notebook-image-n-1" "odh-trustyai-notebook-image-n-1")
-              REGEXES=("v2-${{ env.RELEASE_VERSION_N_1 }}-\d{8}+-${{ steps.hash-n-1.outputs.HASH_N_1 }}" "cuda-[a-z]+-minimal-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION_N_1 }}-\d{8}-${{ steps.hash-n-1.outputs.HASH_N_1 }}" "v2-${{ env.RELEASE_VERSION_N_1 }}-\d{8}+-${{ steps.hash-n-1.outputs.HASH_N_1 }}" \
-                       "v2-${{ env.RELEASE_VERSION_N_1 }}-\d{8}+-${{ steps.hash-n-1.outputs.HASH_N_1 }}" "cuda-[a-z]+-tensorflow-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION_N_1 }}-\d{8}-${{ steps.hash-n-1.outputs.HASH_N_1 }}" "v2-${{ env.RELEASE_VERSION_N_1 }}-\d{8}+-${{ steps.hash-n-1.outputs.HASH_N_1 }}")
-
-              for ((i=0;i<${#IMAGES[@]};++i)); do
-                image=${IMAGES[$i]}
-                echo $image
-                regex=${REGEXES[$i]}
-                img=$(cat manifests/base/params.env | grep -E "${image}=" | cut -d '=' -f2)
-                registry=$(echo $img | cut -d '@' -f1)
-                latest_tag=$(skopeo inspect docker://$img | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
-                if [ -z "$latest_tag" ]; then
-                  echo "Image $image doesn't exist on registry $registry."
-                  exit 1
-                fi
-                digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
-                output=$registry@$digest
-                echo $output
-                sed -i "s|${image}=.*|${image}=$output|" manifests/base/params.env
-              done
-              git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add manifests/base/params.env && git commit -m "Update images for release N-1 via ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
-
-      # - name: Fetch digest, and update the commit.env file
-      #   run: |
-      #         echo Latest commit is: ${{ steps.hash-n-1.outputs.HASH_N_1 }} on ${{ env.RELEASE_VERSION_N_1}}
-      #         COMMIT=("odh-minimal-notebook-image-commit-n-1" "odh-minimal-gpu-notebook-image-commit-n-1" "odh-pytorch-gpu-notebook-image-commit-n-1" "odh-generic-data-science-notebook-image-commit-n-1" "odh-tensorflow-gpu-notebook-image-commit-n-1" "odh-trustyai-notebook-image-commit-n-1")
-      #         for val in "${COMMIT[@]}"; do
-      #           echo $val
-      #           sed -i "s|${val}=.*|${val}=${{ steps.hash-n-1.outputs.HASH_N_1 }}|" manifests/base/commit.env
-      #         done
-      #         git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add manifests/base/commit.env && git commit -m "Update image commits for release N-1 via ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
+  #             for val in "${COMMIT[@]}"; do
+  #               echo $val
+  #               sed -i "s|${val}=.*|${val}=${{ steps.hash-n-1.outputs.HASH_N_1 }}|" manifests/base/commit.env
+  #             done
+  #             if [[ $(git status --porcelain | wc -l) -gt 0 ]]; then
+  #               git fetch origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin  ${{ env.DIGEST_UPDATER_BRANCH }} && git add manifests/base/commit.env && git commit -m "Update image commits for release N-1 via ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin  ${{ env.DIGEST_UPDATER_BRANCH }}
+  #             else
+  #               echo "There were no changes detected in the images for the ${{ env.RELEASE_VERSION_N}}"
+  #             fi
 
   open-pull-request:
-    needs: [ update-n-1-version ]
+    needs: [ update-n-version, update-runtimes ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: pull-request
         uses: repo-sync/pull-request@v2
         with:
-          source_branch: digest-updater
+          source_branch: ${{ env.DIGEST_UPDATER_BRANCH }}
           destination_branch: ${{ inputs.branch }}
           github_token: ${{ secrets.GH_ACCESS_TOKEN }}
           pr_label: "automated pr"
           pr_title: "[Digest Updater Action] Update notebook's imageStreams image tag to digest format"
           pr_body: |
-            :rocket: This is a automated PR
+            :rocket: This is an automated Pull Request.
+            Created by `/.github/workflows/notebooks-digest-updater-upstream.yaml`
 
-            _Created by `/.github/workflows/digest-updater.yaml`
+            This PR updates the following files:
+            - `manifests/base/params.env` file with the latest updated SHA digests of the notebooks (N & N-1).
+            - `manifests/base/commit.env` file with the latest commit (N & N-1).
+            - All the runtime images across `/jupyter/datascience/ubi*-python-*/runtime-images/*.json` paths
 
-            :exclamation: **IMPORTANT NOTE**: Remember to delete the `digest-updater` branch after merging the changes
-
-
-####
-
-# # The aim of this GitHub workflow is to update the params.env file with the latest digest.
-# on:
-#   workflow_dispatch:
-#     inputs:
-#       branch:
-#         required: true
-#         description: "Provide the name of the branch you want to update ex master, rhods-x.xx etc"
-#       release-n:
-#         required: true
-#         description: "Provide release N version of the notebooks ex 2023a"
-# #  schedule:
-# #    - cron:  "0 0 * * 5" #Scheduled every Friday
-# env:
-#   DIGEST_UPDATER_BRANCH: digest-updater-${{ github.run_id }}
-#   BRANCH_NAME: ${{ github.event.inputs.branch || 'main' }}
-#   RELEASE_VERSION: ${{ github.event.inputs.release-n || '2023a' }}
-# jobs:
-#   initialize:
-#     runs-on: ubuntu-latest
-#     permissions:
-#       contents: write
-#     steps:
-#       - name: Install Skopeo CLI
-#         shell: bash
-#         run: |
-#           sudo apt-get -y update
-#           sudo apt-get -y install skopeo
-
-#       # Checkout the release branch
-#       - name: Checkout release branch
-#         uses: actions/checkout@v3
-#         with:
-#           ref: ${{ env.BRANCH_NAME }}
-
-#       # Create a new branch
-#       - name: Create a new branch
-#         run: |
-#          echo ${{ env.DIGEST_UPDATER_BRANCH }}
-#          git checkout -b ${{ env.DIGEST_UPDATER_BRANCH }}
-#          git push --set-upstream origin ${{ env.DIGEST_UPDATER_BRANCH }}
-
-#   update-n-version:
-#     needs: [ initialize ]
-#     runs-on: ubuntu-latest
-#     permissions:
-#       contents: write
-#     steps:
-#       - name: Configure Git
-#         run: |
-#          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-#          git config --global user.name "GitHub Actions"
-
-#       # Get the latest weekly build commit hash: https://github.com/opendatahub-io/notebooks/commits/2023a
-#       - name: Checkout upstream notebooks repo
-#         uses: actions/checkout@v3
-#         with:
-#          repository: red-hat-data-services/notebooks
-#          ref: release-${{ env.RELEASE_VERSION }}
-#       - name: Retrive latest weekly commit hash from the release branch
-#         id: hash
-#         shell: bash
-#         run: |
-#           echo "HASH=$(git rev-parse --short HEAD)" >> ${GITHUB_OUTPUT}
-
-#       # Checkout the release branch to apply the updates
-#       - name: Checkout release branch
-#         uses: actions/checkout@v3
-#         with:
-#           ref: ${{ env.DIGEST_UPDATER_BRANCH }}
-
-#       - name: Fetch digest, and update the param.env file
-#         run: |
-#               IMAGES=("odh-minimal-notebook-image-n" "odh-minimal-gpu-notebook-image-n" "odh-pytorch-gpu-notebook-image-n" "odh-generic-data-science-notebook-image-n" "odh-tensorflow-gpu-notebook-image-n" "odh-trustyai-notebook-image-n")
-#               REGEXES=("v2-${{ env.RELEASE_VERSION }}-\d{8}+-${{ steps.hash.outputs.HASH }}" "cuda-[a-z]+-minimal-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION }}-\d{8}-${{ steps.hash.outputs.HASH }}" "v2-${{ env.RELEASE_VERSION }}-\d{8}+-${{ steps.hash.outputs.HASH }}" \
-#                        "v2-${{ env.RELEASE_VERSION }}-\d{8}+-${{ steps.hash.outputs.HASH }}" "cuda-[a-z]+-tensorflow-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION }}-\d{8}-${{ steps.hash.outputs.HASH }}" "v1-${{ env.RELEASE_VERSION }}}-\d{8}+-${{ steps.hash.outputs.HASH }}")
-
-#               for ((i=0;i<${#IMAGES[@]};++i)); do
-#                 image=${IMAGES[$i]}
-#                 echo $image
-#                 regex=${REGEXES[$i]}
-#                 img=$(cat jupyterhub/notebook-images/overlays/additional/params.env | grep -E "${image}=" | cut -d '=' -f2)
-#                 registry=$(echo $img | cut -d '@' -f1)
-#                 latest_tag=$(skopeo inspect docker://$img | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
-#                 digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
-#                 output=$registry@$digest
-#                 echo $output
-#                 sed -i "s|${image}=.*|${image}=$output|" jupyterhub/notebook-images/overlays/additional/params.env
-#               done
-#               git fetch origin ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin ${{ env.DIGEST_UPDATER_BRANCH }} && git add jupyterhub/notebook-images/overlays/additional/params.env && git commit -m "Update file via digest-updater GitHub action" && git push origin ${{ env.DIGEST_UPDATER_BRANCH }}
-
-
-
-# ####
-
-#   # open-pull-request:
-#   #   needs: [ update-n-version ]
-#   #   runs-on: ubuntu-latest
-#   #   permissions:
-#   #     contents: write
-#   #   steps:
-#   #     - name: Checkout repo
-#   #       uses: actions/checkout@v3
-#   #     - name: Create Pull Request
-#   #       uses: peter-evans/create-pull-request@v4.2.3
-#   #       with:
-#   #         token: ${{ secrets.GITHUB_TOKEN }}
-#   #         commit-message: Update report
-#   #         committer: GitHub <noreply@github.com>
-#   #         author: ${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>
-#   #         signoff: false
-#   #         branch:  ${{ env.DIGEST_UPDATER_BRANCH }}
-#   #         title: '[Example] Update report'
-#   #         body: |
-#   #           Update report
-#   #           - Updated with *today's* date
-#   #           - Auto-generated by [create-pull-request][1]
-
-#   #           [1]: https://github.com/peter-evans/create-pull-request
-#   #         labels: |
-#   #           report
-#   #           automated pr
-#   #         assignees: peter-evans
-#   #         reviewers: peter-evans
-#   #         team-reviewers: |
-#   #           developers
-#   #           qa-team
-#   #         milestone: 1
-#   #         draft: false
-
-#   #         # token: ${{ secrets.GITHUB_TOKEN }}
-#   #         # commit-message: 'Auto-generated pull request'
-#   #         # base: ${{ env.BRANCH_NAME}}
-#   #         # branch: ${{ env.DIGEST_UPDATER_BRANCH }}
-#   #         # delete-branch: true
-#   #         # title: 'New feature'
-#   #         # body: 'This pull request adds a new feature.'
-
-
-#   open-pull-request:
-#     needs: [ update-n-version ]
-#     runs-on: ubuntu-latest
-#     permissions:
-#       contents: write
-#     steps:
-#       - name: Checkout repo
-#         uses: actions/checkout@v3
-#       - name: pull-request
-#         uses: repo-sync/pull-request@v2
-#         with:
-#           source_branch: ${{ env.DIGEST_UPDATER_BRANCH }}
-#           destination_branch: ${{ env.BRANCH_NAME}}
-#           github_token: ${{ secrets.GH_ACCESS_TOKEN }}
-#           pr_label: "automated pr"
-#           pr_title: "[Digest Updater Action] Update notebook's imageStreams image tag to digest format"
-#           pr_body: |
-#             :rocket: This is a automated PR
-
-#             _Created by `/.github/workflows/digest-updater.yaml`
-
-#             :exclamation: **IMPORTANT NOTE**: Remember to delete the `${{ env.DIGEST_UPDATER_BRANCH }}` branch after merging the changes
-
-
-# # # The aim of this GitHub workflow is to update the params.env file with the latest digest.
-# # on:
-# #   workflow_dispatch:
-# #     inputs:
-# #       branch:
-# #         required: true
-# #         description: "Provide the name of the branch you want to update ex master, rhods-x.xx etc"
-# #       release-n:
-# #         required: true
-# #         description: "Provide release N version of the notebooks ex 2023a"
-
-# # jobs:
-# #   initialize:
-# #     runs-on: ubuntu-latest
-# #     permissions:
-# #       contents: write
-# #     steps:
-# #       - name: Install Skopeo CLI
-# #         shell: bash
-# #         run: |
-# #           sudo apt-get -y update
-# #           sudo apt-get -y install skopeo
-
-# #       # Checkout the release branch
-# #       - name: Checkout release branch
-# #         uses: actions/checkout@v3
-# #         with:
-# #           ref:  ${{ inputs.branch }}
-
-# #       # Create a new branch
-# #       - name: Create a new branch
-# #         run: |
-# #          git checkout -b digest-updater
-# #          git push --set-upstream origin digest-updater
-
-# #   update-n-version:
-# #     needs: [ initialize ]
-# #     runs-on: ubuntu-latest
-# #     permissions:
-# #       contents: write
-# #     steps:
-# #       - name: Configure Git
-# #         run: |
-# #          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-# #          git config --global user.name "GitHub Actions"
-
-# #       # Get the latest weekly build commit hash: https://github.com/opendatahub-io/notebooks/commits/2023a
-# #       - name: Checkout upstream notebooks repo
-# #         uses: actions/checkout@v3
-# #         with:
-# #          repository: red-hat-data-services/notebooks
-# #          ref: release-${{ inputs.release-n }}
-# #       - name: Retrive latest weekly commit hash from the release branch
-# #         id: hash
-# #         shell: bash
-# #         run: |
-# #           echo "HASH=$(git rev-parse --short HEAD)" >> ${GITHUB_OUTPUT}
-
-# #       # Checkout the release branch to apply the updates
-# #       - name: Checkout release branch
-# #         uses: actions/checkout@v3
-# #         with:
-# #           ref: digest-updater
-
-# #       - name: Fetch digest, and update the param.env file
-# #         run: |
-# #               IMAGES=("odh-minimal-notebook-image-n" "odh-minimal-gpu-notebook-image-n" "odh-pytorch-gpu-notebook-image-n" "odh-generic-data-science-notebook-image-n" "odh-tensorflow-gpu-notebook-image-n" "odh-trustyai-notebook-image-n")
-# #               REGEXES=("v2-${{ inputs.release-n }}-\d{8}+-${{ steps.hash.outputs.HASH }}" "cuda-[a-z]+-minimal-[a-z0-9]+-[a-z]+-3.9-${{ inputs.release-n }}-\d{8}-${{ steps.hash.outputs.HASH }}" "v2-${{ inputs.release-n }}-\d{8}+-${{ steps.hash.outputs.HASH }}" \
-# #                        "v2-${{ inputs.release-n }}-\d{8}+-${{ steps.hash.outputs.HASH }}" "cuda-[a-z]+-tensorflow-[a-z0-9]+-[a-z]+-3.9-${{ inputs.release-n }}-\d{8}-${{ steps.hash.outputs.HASH }}" "v1-${{ inputs.release-n }}-\d{8}+-${{ steps.hash.outputs.HASH }}")
-
-# #               for ((i=0;i<${#IMAGES[@]};++i)); do
-# #                 image=${IMAGES[$i]}
-# #                 echo $image
-# #                 regex=${REGEXES[$i]}
-# #                 img=$(cat jupyterhub/notebook-images/overlays/additional/params.env | grep -E "${image}=" | cut -d '=' -f2)
-# #                 registry=$(echo $img | cut -d '@' -f1)
-# #                 latest_tag=$(skopeo inspect docker://$img | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
-# #                 digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
-# #                 output=$registry@$digest
-# #                 echo $output
-# #                 sed -i "s|${image}=.*|${image}=$output|" jupyterhub/notebook-images/overlays/additional/params.env
-# #               done
-# #               git fetch origin digest-updater && git pull origin digest-updater && git add jupyterhub/notebook-images/overlays/additional/params.env && git commit -m "Update file via digest-updater GitHub action" && git push origin digest-updater
-
-# #       # - name: Fetch digest, and update the param.env file
-# #       #   run: |
-# #       #         IMAGES=("odh-minimal-notebook-image-n" "odh-minimal-gpu-notebook-image-n" "odh-pytorch-gpu-notebook-image-n" "odh-generic-data-science-notebook-image-n" "odh-tensorflow-gpu-notebook-image-n" "odh-trustyai-notebook-image-n")
-# #       #         REGEXES=("v2-${{ inputs.release-n }}-\d{8}+-${{ steps.hash.outputs.HASH }}" "cuda-[a-z]+-minimal-[a-z0-9]+-[a-z]+-3.9-${{ inputs.release-n }}-\d{8}-${{ steps.hash.outputs.HASH }}" "v2-${{ inputs.release-n }}-\d{8}+-${{ steps.hash.outputs.HASH }}" \
-# #       #                  "v2-${{ inputs.release-n }}-\d{8}+-${{ steps.hash.outputs.HASH }}" "cuda-[a-z]+-tensorflow-[a-z0-9]+-[a-z]+-3.9-${{ inputs.release-n }}-\d{8}-${{ steps.hash.outputs.HASH }}" "v1-${{ inputs.release-n }}-\d{8}+-${{ steps.hash.outputs.HASH }}")
-
-# #       #         for ((i=0;i<${#IMAGES[@]};++i)); do
-# #       #           image=${IMAGES[$i]}
-# #       #           echo $image
-# #       #           regex=${REGEXES[$i]}
-# #       #           img=$(cat jupyterhub/notebook-images/overlays/additional/params.env | grep -E "${image}=" | cut -d '=' -f2)
-# #       #           registry=$(echo $img | cut -d '@' -f1)
-# #       #           latest_tag=$(skopeo inspect docker://$img | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
-# #       #           digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
-# #       #           output=$registry@$digest
-# #       #           echo $output
-# #       #           sed -i "s|${image}=.*|${image}=$output|" jupyterhub/notebook-images/overlays/additional/params.env
-# #       #         done
-# #       #         git fetch origin digest-updater && git pull origin digest-updater && git add jupyterhub/notebook-images/overlays/additional/params.env && git commit -m "Update file via digest-updater GitHub action" && git push origin digest-updater
-
-# #   open-pull-request:
-# #     needs: [ update-n-version ]
-# #     runs-on: ubuntu-latest
-# #     permissions:
-# #       contents: write
-# #     steps:
-# #       - name: Checkout repo
-# #         uses: actions/checkout@v3
-# #       - name: pull-request
-# #         uses: repo-sync/pull-request@v2
-# #         with:
-# #           source_branch: digest-updater
-# #           destination_branch: ${{ inputs.branch }}
-# #           github_token: ${{ secrets.GH_ACCESS_TOKEN }}
-# #           pr_label: "automated pr"
-# #           pr_title: "[Digest Updater Action] Update notebook's imageStreams image tag to digest format"
-# #           pr_body: |
-# #             :rocket: This is a automated PR
-
-# #             _Created by `/.github/workflows/digest-updater.yaml`
-
-# #             :exclamation: **IMPORTANT NOTE**: Remember to delete the `digest-updater` branch after merging the changes
-
+            :exclamation: **IMPORTANT NOTE**: Remember to delete the ` ${{ env.DIGEST_UPDATER_BRANCH }}` branch after merging the changes

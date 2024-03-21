@@ -50,12 +50,12 @@ jobs:
             git config --global user.email "github-actions[bot]@users.noreply.github.com"
             git config --global user.name "GitHub Actions"
 
-        # Get latest build commit from the https://github.com/opendatahub-io/notebooks/${release_branch} using this as identifier for the latest tag name
+        # Get latest build commit from the https://github.com/red-hat-data-services/notebooks/${release_branch} using this as identifier for the latest tag name
         - name: Retrive latest commit hash from the release branch
           id: hash-n
           shell: bash
           run: |
-            PAYLOAD=$(curl --silent -H 'Accept: application/vnd.github.v4.raw' https://api.github.com/repos/opendatahub-io/notebooks/commits?sha=$RELEASE_VERSION_N&per_page=1)
+            PAYLOAD=$(curl --silent -H 'Accept: application/vnd.github.v4.raw' https://api.github.com/repos/red-hat-data-services/notebooks/commits?sha=release-$RELEASE_VERSION_N&per_page=1)
             echo "HASH_N=$(echo $PAYLOAD | jq -r '.[0].sha[0:7]')" >> ${GITHUB_OUTPUT}
 
 
@@ -119,12 +119,12 @@ jobs:
          git config --global user.email "github-actions[bot]@users.noreply.github.com"
          git config --global user.name "GitHub Actions"
 
-      # Get latest build commit from the https://github.com/opendatahub-io/notebooks/${release_branch} using this as identifier for the latest tag name
+      # Get latest build commit from the https://github.com/red-hat-data-services/notebooks/${release_branch} using this as identifier for the latest tag name
       - name: Retrive latest commit hash from the release branch
         id: hash-n
         shell: bash
         run: |
-          PAYLOAD=$(curl --silent -H 'Accept: application/vnd.github.v4.raw' https://api.github.com/repos/opendatahub-io/notebooks/commits?sha=$RELEASE_VERSION_N&per_page=1)
+          PAYLOAD=$(curl --silent -H 'Accept: application/vnd.github.v4.raw' https://api.github.com/repos/red-hat-data-services/notebooks/commits?sha=release-$RELEASE_VERSION_N&per_page=1)
           echo "HASH_N=$(echo $PAYLOAD | jq -r '.[0].sha[0:7]')" >> ${GITHUB_OUTPUT}
 
       # Checkout the release branch to apply the updates
@@ -199,12 +199,12 @@ jobs:
          git config --global user.email "github-actions[bot]@users.noreply.github.com"
          git config --global user.name "GitHub Actions"
 
-      # Get latest build commit from the https://github.com/opendatahub-io/notebooks/${release_branch} using this as identifier for the latest tag name
+      # Get latest build commit from the https://github.com/red-hat-data-services/notebooks/${release_branch} using this as identifier for the latest tag name
       - name: Retrive latest commit hash from the release branch
         id: hash-n-1
         shell: bash
         run: |
-          PAYLOAD=$(curl --silent -H 'Accept: application/vnd.github.v4.raw' https://api.github.com/repos/opendatahub-io/notebooks/commits?sha=$RELEASE_VERSION_N_1&per_page=1)
+          PAYLOAD=$(curl --silent -H 'Accept: application/vnd.github.v4.raw' https://api.github.com/repos/red-hat-data-services/notebooks/commits?sha=release-$RELEASE_VERSION_N_1&per_page=1)
           echo "HASH_N_1=$(echo $PAYLOAD | jq -r '.[0].sha[0:7]')" >> ${GITHUB_OUTPUT}
 
       # Checkout the release branch to apply the updates
@@ -274,7 +274,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: pull-request
         uses: repo-sync/pull-request@v2
@@ -283,11 +283,14 @@ jobs:
           destination_branch: ${{ env.BRANCH_NAME}}
           github_token: ${{ secrets.GH_ACCESS_TOKEN }}
           pr_label: "automated pr"
-          pr_title: "[Digest Updater Action] Update digests on the notebook images"
+          pr_title: "[Digest Updater Action] Update notebook's imageStreams image tag to digest format"
           pr_body: |
             :rocket: This is an automated Pull Request.
-
-            This PR updates the `manifests/base/params.env` file with the latest updated SHA digests of the notebooks (N & N-1).
             Created by `/.github/workflows/notebooks-digest-updater-upstream.yaml`
+
+            This PR updates the following files:
+            - `manifests/base/params.env` file with the latest updated SHA digests of the notebooks (N & N-1).
+            - `manifests/base/commit.env` file with the latest commit (N & N-1).
+            - All the runtime images across `/jupyter/datascience/ubi*-python-*/runtime-images/*.json` paths
 
             :exclamation: **IMPORTANT NOTE**: Remember to delete the ` ${{ env.DIGEST_UPDATER_BRANCH }}` branch after merging the changes

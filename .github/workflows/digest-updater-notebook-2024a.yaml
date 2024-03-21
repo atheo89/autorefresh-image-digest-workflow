@@ -76,18 +76,17 @@ jobs:
               for ((i=0;i<${#PATHS[@]};++i)); do
                 path=${PATHS[$i]}
                 img=$(cat ${path} | jq -r '.metadata.image_name')
-                echo "OLD: " $img
                 name=$(echo "$path" | sed 's#.*runtime-images/\(.*\)-py.*#\1#')
                 py_version=$(echo 'path="jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"' | grep -o 'python-[0-9]\.[0-9]')
                 # Handling specific cases
                 if [[ $name == *tensorflow* ]]; then
-                    name="cuda-tensorflow"
+                    name="cuda-$name"
                 elif [[ $name == ubi* ]]; then
                     name="minimal-$name"
                 fi
                 registry=$(echo $img | cut -d '@' -f1)
                 regex="runtime-$name-$py_version-${{ env.RELEASE_VERSION_N}}-\d+-${{ steps.hash-n.outputs.HASH_N }}"
-                echo "Checking for: "  $regex
+                echo "CHECKING: "  $regex
                 latest_tag=$(skopeo inspect docker://$img | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
                 digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
                 output=$registry@$digest

@@ -71,38 +71,38 @@ jobs:
 
         - name: Update runtimes
           run: |
-                declare -A image_paths=(
-                  ["jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"]="jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"
-                  ["jupyter/datascience/ubi8-python-3.8/runtime-images/datascience-ubi8-py38.json"]="jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"
-                  ["jupyter/datascience/ubi9-python-3.9/runtime-images/datascience-ubi9-py39.json"]="jupyter/datascience/ubi9-python-3.9/runtime-images/datascience-ubi9-py39.json"
-                  # Add more mappings as needed
-                )
+            declare -A image_paths=(
+              ["jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"]="jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"
+              ["jupyter/datascience/ubi8-python-3.8/runtime-images/datascience-ubi8-py38.json"]="jupyter/datascience/anaconda-python-3.8/runtime-images/datascience-ubi8-py38.json"
+              ["jupyter/datascience/ubi9-python-3.9/runtime-images/datascience-ubi9-py39.json"]="jupyter/datascience/ubi9-python-3.9/runtime-images/datascience-ubi9-py39.json"
+              # Add more mappings as needed
+              )
 
-                for image_path in "${!image_paths[@]}"; do
-                  target_path="${image_paths[$image_path]}"
-                  image=$(cat "$image_path")
-                  registry=$(echo "$image" | cut -d '@' -f1)
-                  src_tag=$(echo "$image" | jq -r '.metadata.image_name' | cut -d ':' -f2)
-                  regex="$src_tag-${{ env.RELEASE_VERSION_N }}-\d+-${{ steps.hash-n.outputs.HASH_N }}"
-                  latest_tag=$(skopeo inspect docker://"$image" | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
-                  digest=$(skopeo inspect docker://"$registry":"$latest_tag" | jq -r .Digest)
-                  output="$registry@$digest"
-                  echo "NEW: $output" >> "$target_path.tmp"
-                done
+              for image_path in "${!image_paths[@]}"; do
+                target_path="${image_paths[$image_path]}"
+                image=$(cat "$image_path")
+                registry=$(echo "$image" | cut -d '@' -f1)
+                src_tag=$(echo "$image" | jq -r '.metadata.image_name' | cut -d ':' -f2)
+                regex="$src_tag-${{ env.RELEASE_VERSION_N }}-\d+-${{ steps.hash-n.outputs.HASH_N }}"
+                latest_tag=$(skopeo inspect docker://"$image" | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
+                digest=$(skopeo inspect docker://"$registry":"$latest_tag" | jq -r .Digest)
+                output="$registry@$digest"
+                echo "NEW: $output" >> "$target_path.tmp"
+              done
 
-                for image_path in "${!image_paths[@]}"; do
-                  target_path="${image_paths[$image_path]}"
-                  if [ -s "${target_path}.tmp" ]; then
-                    mv "${target_path}.tmp" "$target_path"
-                  fi
-                done
-
-                if git diff --quiet; then
-                  echo "No changes detected in the images for ${{ env.RELEASE_VERSION_N }}"
-                else
-                  git fetch origin ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin ${{ env.DIGEST_UPDATER_BRANCH }}
-                  git add . && git commit -m "Update files via ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin ${{ env.DIGEST_UPDATER_BRANCH }}
+              for image_path in "${!image_paths[@]}"; do
+                target_path="${image_paths[$image_path]}"
+                if [ -s "${target_path}.tmp" ]; then
+                  mv "${target_path}.tmp" "$target_path"
                 fi
+              done
+
+              if git diff --quiet; then
+                echo "No changes detected in the images for ${{ env.RELEASE_VERSION_N }}"
+              else
+                git fetch origin ${{ env.DIGEST_UPDATER_BRANCH }} && git pull origin ${{ env.DIGEST_UPDATER_BRANCH }}
+                git add . && git commit -m "Update files via ${{ env.DIGEST_UPDATER_BRANCH }} GitHub action" && git push origin ${{ env.DIGEST_UPDATER_BRANCH }}
+              fi
 
         # - name: Update Runtimes
         #   run: |

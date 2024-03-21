@@ -50,8 +50,8 @@ jobs:
             git config --global user.email "github-actions[bot]@users.noreply.github.com"
             git config --global user.name "GitHub Actions"
 
-        # Get latest weekly build commit from the https://github.com/opendatahub-io/notebooks/${release_branch} using this as identifier for the latest tag name
-        - name: Retrive latest weekly commit hash from the release branch
+        # Get latest build commit from the https://github.com/opendatahub-io/notebooks/${release_branch} using this as identifier for the latest tag name
+        - name: Retrive latest commit hash from the release branch
           id: hash-n
           shell: bash
           run: |
@@ -119,18 +119,13 @@ jobs:
          git config --global user.email "github-actions[bot]@users.noreply.github.com"
          git config --global user.name "GitHub Actions"
 
-      # Get the latest weekly build commit hash: https://github.com/opendatahub-io/notebooks/commits/2023b
-      - name: Checkout upstream notebooks repo
-        uses: actions/checkout@v4
-        with:
-         repository: opendatahub-io/notebooks.git
-         ref: ${{ env.RELEASE_VERSION_N }}
-
-      - name: Retrive latest weekly commit hash from the release branch
+      # Get latest build commit from the https://github.com/opendatahub-io/notebooks/${release_branch} using this as identifier for the latest tag name
+      - name: Retrive latest commit hash from the release branch
         id: hash-n
         shell: bash
         run: |
-          echo "HASH_N=$(git rev-parse --short HEAD)" >> ${GITHUB_OUTPUT}
+          PAYLOAD=$(curl --silent -H 'Accept: application/vnd.github.v4.raw' https://api.github.com/repos/opendatahub-io/notebooks/commits?sha=$RELEASE_VERSION_N&per_page=1)
+          echo "HASH_N=$(echo $PAYLOAD | jq -r '.[0].sha[0:7]')" >> ${GITHUB_OUTPUT}
 
       # Checkout the release branch to apply the updates
       - name: Checkout release branch
@@ -204,18 +199,13 @@ jobs:
          git config --global user.email "github-actions[bot]@users.noreply.github.com"
          git config --global user.name "GitHub Actions"
 
-      # Get the latest weekly build commit hash: https://github.com/opendatahub-io/notebooks/commits/2023a
-      - name: Checkout upstream notebooks repo
-        uses: actions/checkout@v4
-        with:
-         repository: opendatahub-io/notebooks.git
-         ref: ${{ env.RELEASE_VERSION_N_1 }}
-
-      - name: Retrive latest weekly commit hash from the release branch
+      # Get latest build commit from the https://github.com/opendatahub-io/notebooks/${release_branch} using this as identifier for the latest tag name
+      - name: Retrive latest commit hash from the release branch
         id: hash-n-1
         shell: bash
         run: |
-          echo "HASH_N_1=$(git rev-parse --short HEAD)" >> ${GITHUB_OUTPUT}
+          PAYLOAD=$(curl --silent -H 'Accept: application/vnd.github.v4.raw' https://api.github.com/repos/opendatahub-io/notebooks/commits?sha=$RELEASE_VERSION_N_1&per_page=1)
+          echo "HASH_N_1=$(echo $PAYLOAD | jq -r '.[0].sha[0:7]')" >> ${GITHUB_OUTPUT}
 
       # Checkout the release branch to apply the updates
       - name: Checkout release branch
@@ -293,7 +283,7 @@ jobs:
           destination_branch: ${{ env.BRANCH_NAME}}
           github_token: ${{ secrets.GH_ACCESS_TOKEN }}
           pr_label: "automated pr"
-          pr_title: "[Digest Updater Action] Update notebook's imageStreams image tag to digest format"
+          pr_title: "[Digest Updater Action] Update digests on the notebook images"
           pr_body: |
             :rocket: This is an automated Pull Request.
 

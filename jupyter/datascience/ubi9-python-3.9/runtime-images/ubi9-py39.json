@@ -1,0 +1,12 @@
+{
+  "display_name": "Python 3.9 (UBI9)",
+  "metadata": {
+    "tags": [
+      "minimal"
+    ],
+    "display_name": "Python 3.9 (UBI9)",
+    "image_name": "quay.io/opendatahub/workbench-images@sha256:988098b6cc02d23fc50fa633c955fc42eb75ce2d488596f605611e5b87a167b8",
+    "pull_policy": "IfNotPresent"
+  },
+  "schema_name": "runtime-image"
+}

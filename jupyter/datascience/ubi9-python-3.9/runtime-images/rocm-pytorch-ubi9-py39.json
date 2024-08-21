@@ -1,12 +1,12 @@
 {
+  "display_name": "Pytorch with ROCm and Python 3.9 (UBI9)",
+  "metadata": {
+    "tags": [
+      "rocm-pytorch"
+    ],
     "display_name": "Pytorch with ROCm and Python 3.9 (UBI9)",
-    "metadata": {
-      "tags": [
-        "rocm-pytorch"
-      ],
-      "display_name": "Pytorch with ROCm and Python 3.9 (UBI9)",
-      "image_name": "quay.io/opendatahub/workbench-images@sha256:519b7f4ea9a16065ba2213389de4e38ee4afa3084f3b8b770157818928ad0f7a",
-      "pull_policy": "IfNotPresent"
-    },
-    "schema_name": "runtime-image"
-  }
+    "image_name": "quay.io/opendatahub/workbench-images@sha256:f8a23d743f3cffe1fa5eeca3cfd4f4321b0b6eb5f4cb9d0e2b6877c978e8ac65",
+    "pull_policy": "IfNotPresent"
+  },
+  "schema_name": "runtime-image"
+}

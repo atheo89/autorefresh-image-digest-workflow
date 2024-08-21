@@ -1,12 +1,12 @@
 {
+  "display_name": "TensorFlow with ROCm and Python 3.9 (UBI9)",
+  "metadata": {
+    "tags": [
+      "rocm-tensorflow"
+    ],
     "display_name": "TensorFlow with ROCm and Python 3.9 (UBI9)",
-    "metadata": {
-      "tags": [
-        "rocm-tensorflow"
-      ],
-      "display_name": "TensorFlow with ROCm and Python 3.9 (UBI9)",
-      "image_name": "quay.io/opendatahub/workbench-images@sha256:a1bbf6153921b60cb58f094d110bf6dc054d13a07c4c513a6b994d1b74a8b60e",
-      "pull_policy": "IfNotPresent"
-    },
-    "schema_name": "runtime-image"
-  }
+    "image_name": "quay.io/opendatahub/workbench-images@sha256:1c04ddbb0b51bf9b1bcaf8574656785cf6ee35479a643a32ace0ba0cd3ec601a",
+    "pull_policy": "IfNotPresent"
+  },
+  "schema_name": "runtime-image"
+}

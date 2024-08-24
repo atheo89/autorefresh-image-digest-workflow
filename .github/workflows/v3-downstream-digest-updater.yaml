@@ -83,7 +83,6 @@ jobs:
                   "v2-${{ env.RELEASE_VERSION_N }}-\d{8}-+${{ steps.hash-n.outputs.HASH_N }}" \
                   "codeserver-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION_N }}-\d{8}-${{ steps.hash-n.outputs.HASH_N }}" \
                   "habana-[a-z]+-1.13.0-[a-z0-9]+-[a-z]+-3.8-${{ env.RELEASE_VERSION_N }}-\d{8}-${{ steps.hash-n.outputs.HASH_N }}" \
-                  "habana-[a-z]+-1.13.0-[a-z0-9]+-[a-z]+-3.8-${{ env.RELEASE_VERSION_N }}-\d{8}-${{ steps.hash-n.outputs.HASH_N }}" \
                   "rocm-[a-z]+-minimal-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION_N }}-\d{8}-${{ steps.hash-n.outputs.HASH_N }}" \
                   "rocm-[a-z]+-pytorch-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION_N }}-\d{8}-${{ steps.hash-n.outputs.HASH_N }}" \
                   "rocm-[a-z]+-tensorflow-[a-z0-9]+-[a-z]+-3.9-${{ env.RELEASE_VERSION_N }}-\d{8}-${{ steps.hash-n.outputs.HASH_N }}")
@@ -96,8 +95,9 @@ jobs:
 
             regex=${REGEXES[$i]}
             skopeo_metadata=$(skopeo inspect --retry-times 3 "docker://${img}")
-            latest_tag=$(skopeo inspect "docker://${img}" | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
-            digest=$(skopeo inspect "docker://${registry}:${latest_tag}" | jq .Digest | tr -d '"')
+            latest_tag=$(echo "${skopeo_metadata}" | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
+            echo "DEBUG latest_tag: $latest_tag "
+            digest=$(skopeo inspect --retry-times 3 "docker://${registry}:${latest_tag}" | jq .Digest | tr -d '"')
             output="${registry}@${digest}"
             echo "NEW: ${output}"
             sed -i "s|${image}=.*|${image}=${output}|" "${PARAMS_ENV_PATH}"
@@ -190,11 +190,12 @@ jobs:
             registry=$(echo "${img}" | cut -d '@' -f1)
             regex=${REGEXES[$i]}
             skopeo_metadata=$(skopeo inspect --retry-times 3 "docker://${img}")
-            latest_tag=$(skopeo inspect docker://$img | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
-            digest=$(skopeo inspect docker://$registry:$latest_tag | jq .Digest | tr -d '"')
-            output=$registry@$digest
-            echo "NEW: " $output
-            sed -i "s|${image}=.*|${image}=$output|" manifests/base/params.env
+            latest_tag=$(echo "${skopeo_metadata}" | jq -r --arg regex "$regex" '.RepoTags | map(select(. | test($regex))) | .[0]')
+            echo "DEBUG latest_tag: $latest_tag "
+            digest=$(skopeo inspect --retry-times 3 "docker://${registry}:${latest_tag}" | jq .Digest | tr -d '"')
+            output="${registry}@${digest}"
+            echo "NEW: ${output}"
+            sed -i "s|${image}=.*|${image}=${output}|" "${PARAMS_ENV_PATH}"
             i=$((i+1))
           done
           if [[ $(git status --porcelain | wc -l) -gt 0 ]]; then

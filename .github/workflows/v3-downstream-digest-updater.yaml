@@ -113,8 +113,6 @@ jobs:
             echo "There were no changes detected in the images for the ${{ env.RELEASE_VERSION_N}}"
           fi
 
-          
-
       - name: Update the commit.env file
         run: |
           echo Latest commit is: ${{ steps.hash-n.outputs.HASH_N }} on ${{ env.RELEASE_VERSION_N}}
